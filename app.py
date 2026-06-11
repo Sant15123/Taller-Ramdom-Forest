@@ -129,10 +129,17 @@ def entrenar():
     tiempos = np.array([e[1] for e in y_test])
     c_idx, *_ = concordance_index_censored(eventos, tiempos, scores)
 
-    # Importancia de variables
-    importancias = pd.Series(
-        modelo.feature_importances_, index=X_train.columns
-    ).sort_values(ascending=True)
+    # Importancia de variables (permutación)
+    from sksurv.metrics import concordance_index_censored as cic
+    base_score = c_idx
+    perm_imp = {}
+    for col in X_train.columns:
+        X_perm = X_test.copy()
+        X_perm[col] = np.random.permutation(X_perm[col].values)
+        s = modelo.predict(X_perm)
+        ci, *_ = cic(eventos, tiempos, s)
+        perm_imp[col] = base_score - ci
+    importancias = pd.Series(perm_imp).sort_values(ascending=True)
 
     return modelo, X_train, X_test, y_train, y_test, c_idx, importancias, datos
 
